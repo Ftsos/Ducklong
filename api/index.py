@@ -13,10 +13,16 @@ from types import SimpleNamespace
 from celery import Celery
 from openai import OpenAI
 from flask_cors import CORS
+from dotenv import load_dotenv
 
+load_dotenv()
 
-client = OpenAI(api_key='sk-proj-p9ruNmMSCGV4LESKQJYPT3BlbkFJV2ewry7C2PthrlsVLdkK')
-AWANLLM_API_KEY = '3657a1e9-38a1-4295-8a48-c97c73084ca4'
+OPENAI_API_KEY = os.getenv('OPEN_AI_KEY')
+AWANLLM_API_KEY_ENV = os.getenv('AWANLLM_API_KEY')
+CELERY_BROKER_URL = os.getenv('REDIS_CELERY_KEY')
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+AWANLLM_API_KEY = AWANLLM_API_KEY_ENV
 
 conversation_history = []
 
@@ -27,7 +33,7 @@ script_transcript =  SimpleNamespace(script='', transcription='')
 app = Flask(__name__)
 CORS(app)
 whisper_model_size = "large-v3"
-app.config['CELERY_BROKER_URL'] = 'redis://default:kqPNtC4dM5sZyd3iCXRWayDM9KsoHWrr@kqPNtC4dM5sZyd3iCXRWayDM9KsoHWrr/0' 
+app.config['CELERY_BROKER_URL'] = CELERY_BROKER_URL 
 celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 
 class QuestionFormat(BaseModel):
