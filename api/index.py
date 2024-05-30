@@ -1,6 +1,8 @@
 from datetime import date
 import json
 import os
+import io
+import sys
 import requests
 from flask import Flask, request, jsonify;
 from pydantic import BaseModel
@@ -15,6 +17,8 @@ from openai import OpenAI
 from flask_cors import CORS
 from dotenv import load_dotenv
 
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv('OPEN_AI_KEY')
@@ -23,6 +27,7 @@ CELERY_BROKER_URL = os.getenv('REDIS_CELERY_KEY')
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 AWANLLM_API_KEY = AWANLLM_API_KEY_ENV
+
 
 conversation_history = []
 
@@ -41,8 +46,8 @@ class QuestionFormat(BaseModel):
     choices: list
     answer: int
 
-tokenizer = AutoTokenizer.from_pretrained("gpt2")
-model = AutoModelForCausalLM.from_pretrained("gpt2")
+tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-1.3B")
+model = AutoModelForCausalLM.from_pretrained("EleutherAI/gpt-neo-1.3B")
 
 @celery.task
 def transcribe_audio_file(audio_file): 
@@ -228,63 +233,90 @@ def get_responses():
 
 
 # Endpoint to start a new conversation
-@app.route("/chatbot/start", methods=["POST"])
+@app.route("/api/chatbot/start", methods=["POST"])
 def start_conversation():
     global conversation_history
     conversation_history = []  # Clear conversation history to start a new conversation
 
-    transcription_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), script_transcript.transcription)
-    script_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), script_transcript.script)
+    transcription_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data",script_transcript.transcription)
+    script_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", script_transcript.script)
 
 
     try:
-        with open(transcription_file_path, 'r') as f:
+        with open(transcription_file_path, 'r', encoding='utf-8') as f:
             transcription = f.read()
     except FileNotFoundError:
         return jsonify({"error": "Transcript file not found"}), 404
 
     try:
-        with open(script_file_path, 'r') as f:
+        with open(script_file_path, 'r', encoding='utf-8') as f:
             script = f.read()
     except FileNotFoundError:
         return jsonify({"error": "Script file not found"}), 404
 
+    url = "https://api.awanllm.com/v1/chat/completions"
 
-    response = client.completions.create(engine="davinci",  # You can try other engines too
-    prompt="Eres Ducklong, un Personaje artificial. Tu eres un companero de un estudiante que te va a explicar su clase de ahora, en esa clases estan los conceptos importantes. Tu como buen companero debes preguntar lo que necesites para estar listo para el examen, asegurate de tratar de poner atencion a lo que tu companero te diga. Tu principal objetivo deberia ser dejar que tu companero explique, solamente limitate a hacer alguna que otra pregunta acerca de algo que te parezca que no has entendido o duda que tengas por la manera en la que explico. Sigue lo que el te va diciendo, y trata de inducir lo que el va a decir para corroborar si vas entendiendo bien.  Tu tienes SECRETAMENTE la clase del profesor (su guion y su transcripcion), usalo para preguntar algo que pienses que debas saber y que tu companero no te ha explicado. Debes responder a esta conversacion de la siguiente manera: 'Hola, soy Ducklong, tu companero. Explicame por favor la clase de hoy.'. Guion:`" + script + " Transcripción: `" + transcription + "n`",
-    max_tokens=150)  # Adjust max_tokens as per your requirement)
-    return jsonify({"message": response})
+    payload = json.dumps({
+    "model": "Meta-Llama-3-8B-Instruct",
+    "messages": [
+        {"role": "system", "content": "Eres Ducklong, un Personaje artificial. Tu eres un companero de un estudiante que te va a explicar su clase de ahora, en esa clases estan los conceptos importantes. Tu como buen companero debes preguntar lo que necesites para estar listo para el examen, asegurate de tratar de poner atencion a lo que tu companero te diga. Tu principal objetivo deberia ser dejar que tu companero explique, solamente limitate a hacer alguna que otra pregunta acerca de algo que te parezca que no has entendido o duda que tengas por la manera en la que explico. Sigue lo que el te va diciendo, y trata de inducir lo que el va a decir para corroborar si vas entendiendo bien.  Tu tienes SECRETAMENTE la clase del profesor (su guion y su transcripcion), usalo para preguntar algo que pienses que debas saber y que tu companero no te ha explicado. Debes responder a esta conversacion de la siguiente manera: 'Hola, soy Ducklong, tu companero. Explicame por favor la clase de hoy.'. Guion:`" + script + " Transcripción: `" + transcription + "n`"},
+    ]
+    })
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': f"Bearer {AWANLLM_API_KEY}"
+    }
+    
+    response = requests.request("POST", url, headers=headers, data=payload)
+    json_response = response.json()
+    text_response = json_response['choices'][0]["message"]["content"]
+    conversation_history.append("Bot: "+text_response)
+    return jsonify({"message": text_response})
 
 # Endpoint to end the current conversation
-@app.route("/end", methods=["POST"])
+@app.route("/api/chatbot/end", methods=["POST"])
 def end_conversation():
     global conversation_history
     conversation_history = []  # Clear conversation history
     return jsonify({"message": "Conversation ended."})
 
 # Endpoint to get response from OpenAI
-@app.route("/chatbot/conv", methods=["POST"])
+@app.route("/api/chatbot/conv", methods=["POST"])
 def chatbot():
     global conversation_history
+    url = "https://api.awanllm.com/v1/chat/completions"
 
     # Get user input from the request
     user_input = request.json["message"]
 
-    # Append user input to conversation history
-    conversation_history.append(f"User: {user_input}")
+    base_prompt = conversation_history[0]
 
-    # Generate prompt by concatenating conversation history
-    prompt = "\n".join(conversation_history[-3:])  # Consider last 3 exchanges
-    prompt += "\nBot:"
+    if len(conversation_history) > 1:
+        context_window = conversation_history[1:][-3:]
+    else:
+        context_window = []
 
-    # Call OpenAI API to get chatbot response
-    response = client.completions.create(engine="davinci",  # You can try other engines too
-    prompt=prompt,
-    max_tokens=150)  # Adjust max_tokens as per your requirement)
+    # Step 3: Combine the first element and the last three elements into the prompt
+    if context_window:
+        prompt = base_prompt + "\n" + "\n".join(context_window)
+    else:
+        prompt = base_prompt
+
+    payload = json.dumps({
+    "model": "Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": user_input}]
+    })
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': f"Bearer {AWANLLM_API_KEY}"
+    }
+    
+    response = requests.request("POST", url, headers=headers, data=payload)
+    json_response = response.json()
 
     # Get the generated response from OpenAI
-    chatbot_response = response.choices[0].text.strip()
-
+    chatbot_response =  json_response['choices'][0]["message"]["content"]
+    conversation_history.append(f"User: {user_input}")
     # Append chatbot response to conversation history
     conversation_history.append(f"Bot: {chatbot_response}")
 
