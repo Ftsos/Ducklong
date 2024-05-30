@@ -1,9 +1,10 @@
-#Warning
+# Warning
 Proyecto en desarrollo;
 [X] Comenzar a trabajar la interfaz de cliente para el chatbot 
 [ ] Migracion a Open Ai (Whisper y cambiar los modelos locales y de Llama por GPT3.5)
 [ ] Testear y arreglar cliente para la actividad de quiz y de chatbot (En Quiz basicamente no funciona)
 [ ] Guardar la metadata (Cliente)
+---
 <p align="center">
   <a href="https://nextjs-flask-starter.vercel.app/">
     <img src="https://assets.vercel.com/image/upload/v1588805858/repositories/vercel/logo.png" height="96">
