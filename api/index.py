@@ -4,6 +4,7 @@ import os
 import io
 import sys
 import requests
+import google.generativeai as genai
 from flask import Flask, request, jsonify;
 from pydantic import BaseModel
 from lmformatenforcer import JsonSchemaParser
@@ -17,6 +18,7 @@ from openai import OpenAI
 from flask_cors import CORS
 from dotenv import load_dotenv
 
+
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 load_dotenv()
@@ -24,13 +26,16 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv('OPEN_AI_KEY')
 AWANLLM_API_KEY_ENV = os.getenv('AWANLLM_API_KEY')
 CELERY_BROKER_URL = os.getenv('REDIS_CELERY_KEY')
+GOOGLE_API_KEY = os.getenv('GEMINI_API_KEY')
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 AWANLLM_API_KEY = AWANLLM_API_KEY_ENV
+genai.configure(api_key=os.environ["API_KEY"])
 
 
 conversation_history = []
-
+geminiChatModel = genai.GenerativeModel('gemini-pro')
+chat = {}
 script_transcript =  SimpleNamespace(script='', transcription='')
 
 
@@ -85,26 +90,10 @@ def send_question_prompt(transcript_class, script_class):
     #presence_penalty=0.0,
     #logprobs=None)
 
-    parser = JsonSchemaParser(QuestionFormat.schema())
-    prefix_function = build_transformers_prefix_allowed_tokens_fn(tokenizer, parser)
-
-    # Generate the output with the prefix function
-    output = hf_pipeline(prompt, max_new_tokens=200, num_return_sequences=1, return_full_text=False, prefix_allowed_tokens_fn=prefix_function)[0]['generated_text']
-    
-    # Clean and parse the generated text
-    cleaned_text = output.replace('\n', '').replace('\\', '')
-    
-    try:
-        # Save the cleaned text to a file
-        output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quizzes", "questions.json")
-        with open(output_path, "w", encoding="utf-8") as file:
-            file.write(cleaned_text)
-        
-        # Parse the cleaned JSON text
-        questions_json = json.loads(cleaned_text)
-        return jsonify(questions_json)
-    except json.JSONDecodeError as e:
-        return jsonify({"error": "Invalid JSON format", "details": str(e)}), 500
+    jsonGenerator = genai.GenerativeModel('gemini-1.5-flash',
+                              generation_config={"response_mime_type": "application/json"})
+    response = jsonGenerator.generate_content(prompt)
+    return jsonify(response.text)
 
 def array_to_string(arr):
     return '\n'.join(arr)
@@ -236,6 +225,7 @@ def get_responses():
 @app.route("/api/chatbot/start", methods=["POST"])
 def start_conversation():
     global conversation_history
+    global chat
     conversation_history = []  # Clear conversation history to start a new conversation
 
     transcription_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data",script_transcript.transcription)
@@ -254,71 +244,77 @@ def start_conversation():
     except FileNotFoundError:
         return jsonify({"error": "Script file not found"}), 404
 
-    url = "https://api.awanllm.com/v1/chat/completions"
-
-    payload = json.dumps({
-    "model": "Meta-Llama-3-8B-Instruct",
-    "messages": [
-        {"role": "system", "content": "Eres Ducklong, un Personaje artificial. Tu eres un companero de un estudiante que te va a explicar su clase de ahora, en esa clases estan los conceptos importantes. Tu como buen companero debes preguntar lo que necesites para estar listo para el examen, asegurate de tratar de poner atencion a lo que tu companero te diga. Tu principal objetivo deberia ser dejar que tu companero explique, solamente limitate a hacer alguna que otra pregunta acerca de algo que te parezca que no has entendido o duda que tengas por la manera en la que explico. Sigue lo que el te va diciendo, y trata de inducir lo que el va a decir para corroborar si vas entendiendo bien.  Tu tienes SECRETAMENTE la clase del profesor (su guion y su transcripcion), usalo para preguntar algo que pienses que debas saber y que tu companero no te ha explicado. Debes responder a esta conversacion de la siguiente manera: 'Hola, soy Ducklong, tu companero. Explicame por favor la clase de hoy.'. Guion:`" + script + " Transcripción: `" + transcription + "n`"},
-    ]
-    })
-    headers = {
-    'Content-Type': 'application/json',
-    'Authorization': f"Bearer {AWANLLM_API_KEY}"
-    }
+    #url = "https://api.awanllm.com/v1/chat/completions"
+    chat = geminiChatModel.start_chat(history=[])
+    #payload = json.dumps({
+    #"model": "Meta-Llama-3-8B-Instruct",
+    #"messages": [
+    #    {"role": "system", "content": "Eres Ducklong, un Personaje artificial. Tu eres un companero de un estudiante que te va a explicar su clase de ahora, en esa clases estan los conceptos importantes. Tu como buen companero debes preguntar lo que necesites para estar listo para el examen, asegurate de tratar de poner atencion a lo que tu companero te diga. Tu principal objetivo deberia ser dejar que tu companero explique, solamente limitate a hacer alguna que otra pregunta acerca de algo que te parezca que no has entendido o duda que tengas por la manera en la que explico. Sigue lo que el te va diciendo, y trata de inducir lo que el va a decir para corroborar si vas entendiendo bien.  Tu tienes SECRETAMENTE la clase del profesor (su guion y su transcripcion), usalo para preguntar algo que pienses que debas saber y que tu companero no te ha explicado. Debes responder a esta conversacion de la siguiente manera: 'Hola, soy Ducklong, tu companero. Explicame por favor la clase de hoy.'. Guion:`" + script + " Transcripción: `" + transcription + "n`"},
+    #]
+    #})
+    #headers = {
+    #'Content-Type': 'application/json',
+    #'Authorization': f"Bearer {AWANLLM_API_KEY}"
+    #}
     
-    response = requests.request("POST", url, headers=headers, data=payload)
-    json_response = response.json()
-    text_response = json_response['choices'][0]["message"]["content"]
-    conversation_history.append("Bot: "+text_response)
+    #response = requests.request("POST", url, headers=headers, data=payload)
+    #json_response = response.json()
+    #text_response = json_response['choices'][0]["message"]["content"]
+    #conversation_history.append("Bot: "+text_response)
+    text_response = chat.send_message("Eres Ducklong, un Personaje artificial. Tu eres un companero de un estudiante que te va a explicar su clase de ahora, en esa clases estan los conceptos importantes. Tu como buen companero debes preguntar lo que necesites para estar listo para el examen, asegurate de tratar de poner atencion a lo que tu companero te diga. Tu principal objetivo deberia ser dejar que tu companero explique, solamente limitate a hacer alguna que otra pregunta acerca de algo que te parezca que no has entendido o duda que tengas por la manera en la que explico. Sigue lo que el te va diciendo, y trata de inducir lo que el va a decir para corroborar si vas entendiendo bien.  Tu tienes SECRETAMENTE la clase del profesor (su guion y su transcripcion), usalo para preguntar algo que pienses que debas saber y que tu companero no te ha explicado. Debes responder a esta conversacion de la siguiente manera: 'Hola, soy Ducklong, tu companero. Explicame por favor la clase de hoy.'. Guion:`" + script + " Transcripción: `" + transcription + "n`")
     return jsonify({"message": text_response})
 
 # Endpoint to end the current conversation
 @app.route("/api/chatbot/end", methods=["POST"])
 def end_conversation():
-    global conversation_history
-    conversation_history = []  # Clear conversation history
+    #global conversation_history
+    #conversation_history = []   Clear conversation history
+    global chat
+    chat = {}
     return jsonify({"message": "Conversation ended."})
 
 # Endpoint to get response from OpenAI
 @app.route("/api/chatbot/conv", methods=["POST"])
 def chatbot():
-    global conversation_history
-    url = "https://api.awanllm.com/v1/chat/completions"
+    #global conversation_history
+    global chat
+    #url = "https://api.awanllm.com/v1/chat/completions"
+    if chat == {}:
+        return jsonify("Please, first initiate the chat"), 400;
 
     # Get user input from the request
     user_input = request.json["message"]
 
-    base_prompt = conversation_history[0]
+    #base_prompt = conversation_history[0]
 
-    if len(conversation_history) > 1:
-        context_window = conversation_history[1:][-3:]
-    else:
-        context_window = []
+    #if len(conversation_history) > 1:
+    #    context_window = conversation_history[1:][-3:]
+    #else:
+    #    context_window = []
 
     # Step 3: Combine the first element and the last three elements into the prompt
-    if context_window:
-        prompt = base_prompt + "\n" + "\n".join(context_window)
-    else:
-        prompt = base_prompt
+    #if context_window:
+    #    prompt = base_prompt + "\n" + "\n".join(context_window)
+    #else:
+    #    prompt = base_prompt
 
-    payload = json.dumps({
-    "model": "Meta-Llama-3-8B-Instruct",
-    "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": user_input}]
-    })
-    headers = {
-    'Content-Type': 'application/json',
-    'Authorization': f"Bearer {AWANLLM_API_KEY}"
-    }
+    #payload = json.dumps({
+    #"model": "Meta-Llama-3-8B-Instruct",
+    #"messages": [{"role": "system", "content": prompt}, {"role": "user", "content": user_input}]
+    #})
+    #headers = {
+    #'Content-Type': 'application/json',
+    #'Authorization': f"Bearer {AWANLLM_API_KEY}"
+    #}
     
-    response = requests.request("POST", url, headers=headers, data=payload)
-    json_response = response.json()
+    #response = requests.request("POST", url, headers=headers, data=payload)
+    #json_response = response.json()
 
     # Get the generated response from OpenAI
-    chatbot_response =  json_response['choices'][0]["message"]["content"]
-    conversation_history.append(f"User: {user_input}")
+    #chatbot_response =  json_response['choices'][0]["message"]["content"]
+    #conversation_history.append(f"User: {user_input}")
     # Append chatbot response to conversation history
-    conversation_history.append(f"Bot: {chatbot_response}")
+    #conversation_history.append(f"Bot: {chatbot_response}")
 
     # Return the chatbot response
-    return jsonify({"message": chatbot_response})
+    return jsonify({"message": chat.send_message(user_input)})
