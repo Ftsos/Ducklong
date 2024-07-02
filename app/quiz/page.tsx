@@ -27,8 +27,8 @@ const QuizPage: React.FC = () => {
         // Fetch quiz data from API
         axios.get('/api/quiz/get')
             .then(response => {
-                console.log(response.data)
-                setQuizData(response.data);
+                //console.log(response.data)
+                setQuizData(JSON.parse(response.data));
             })
             .catch(error => {
                 console.error("Error fetching quiz data:", error);
@@ -50,6 +50,7 @@ const QuizPage: React.FC = () => {
         return <div>Loading...</div>;
     }
 
+    
     return (
         <main className="bg-black text-white min-h-screen flex">
             <div className="w-1/4 bg-gray-900 p-4">

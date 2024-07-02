@@ -4,74 +4,161 @@ import os
 import io
 import sys
 import requests
+from api.runpod_whisperx_serverless_clientside.asyncio_runpod_client_helper import RunpodApiClient
+import runpod
+import base64
+import asyncio
+import aiohttp
 import google.generativeai as genai
 from flask import Flask, request, jsonify;
 from pydantic import BaseModel
-from lmformatenforcer import JsonSchemaParser
-from lmformatenforcer.integrations.transformers import build_transformers_prefix_allowed_tokens_fn
-from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
-from faster_whisper import WhisperModel
-from celery.result import AsyncResult
 from types import SimpleNamespace
-from celery import Celery
 from openai import OpenAI
 from flask_cors import CORS
 from dotenv import load_dotenv
+from logging.config import dictConfig
+from runpod import AsyncioEndpoint, AsyncioJob
 
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 load_dotenv()
 
+
+
 OPENAI_API_KEY = os.getenv('OPEN_AI_KEY')
 AWANLLM_API_KEY_ENV = os.getenv('AWANLLM_API_KEY')
 CELERY_BROKER_URL = os.getenv('REDIS_CELERY_KEY')
 GOOGLE_API_KEY = os.getenv('GEMINI_API_KEY')
+RUNPOD_API_KEY = os.getenv('RUNPOD_API_FASTER_WHISPER_KEY')
+
+safety_settings = [
+    {
+        "category": "HARM_CATEGORY_DANGEROUS",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE",
+    },
+]
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 AWANLLM_API_KEY = AWANLLM_API_KEY_ENV
-genai.configure(api_key=os.environ["API_KEY"])
-
+genai.configure(api_key=GOOGLE_API_KEY)
+runpod.api_key = RUNPOD_API_KEY
 
 conversation_history = []
-geminiChatModel = genai.GenerativeModel('gemini-pro')
+geminiChatModel = genai.GenerativeModel('gemini-pro', safety_settings=safety_settings)
 chat = {}
+tasks = {}
 script_transcript =  SimpleNamespace(script='', transcription='')
 
-
+dictConfig(
+    {
+        "version": 1,
+        "formatters": {
+            "default": {
+                "format": "[%(asctime)s] %(levelname)s in %(module)s: %(message)s",
+            }
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+                "formatter": "default",
+            }
+        },
+        "root": {"level": "DEBUG", "handlers": ["console"]},
+    }
+)
 
 app = Flask(__name__)
 CORS(app)
 whisper_model_size = "large-v3"
 app.config['CELERY_BROKER_URL'] = CELERY_BROKER_URL 
-celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
+app.config['CELERY_RESULT_BACKEND'] = CELERY_BROKER_URL
+#celery = Celery(app.name, backend=app.config['CELERY_RESULT_BACKEND'], broker=app.config['CELERY_BROKER_URL'])
+asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+client = RunpodApiClient(RUNPOD_API_KEY, "pwz6ynrk488cme")
 
 class QuestionFormat(BaseModel):
     query: str
     choices: list
     answer: int
 
-tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-1.3B")
-model = AutoModelForCausalLM.from_pretrained("EleutherAI/gpt-neo-1.3B")
+#tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-1.3B")
+#model = AutoModelForCausalLM.from_pretrained("EleutherAI/gpt-neo-1.3B")
 
-@celery.task
-def transcribe_audio_file(audio_file): 
-    model = WhisperModel(whisper_model_size, device="cpu", compute_type="int8")
+def encode_audio_base64(file_path):
+    with open(file_path, "rb") as audio_file:
+        encoded_string = base64.b64encode(audio_file.read()).decode("utf-8")
+    return encoded_string
 
-    segments, info = model.transcribe(audio_file, beam_size=5, language="es")
-    transcription = []
-    print("Transcription in progress")
-    for segment in segments:
-        print("[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text))
-        transcription.append("[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text))
+async def transcribe_audio_file(job_id, audio_file):
 
-    output_file = os.path.join(os.makedirs("data", exist_ok=True), os.path.basename(audio_file) + "-trans.txt")
+
+    """try:
+        async with aiohttp.ClientSession() as session:
+            endpoint = AsyncioEndpoint("pwz6ynrk488cme", session)
+            with open(audio_file + ".health", 'w') as f:
+                f.write(json.dumps(endpoint.health()))
+            job: AsyncioJob = await endpoint.run({"audio_base64": audio_data})
+            with open(audio_file + ".test2", 'w') as f:
+                await f.write(job.status())
+            while True:
+                status = await job.status()
+                print(f"Current job status: {status}")
+                if status == "COMPLETED":
+                    run_request = await job.output()
+                    break
+                elif status in ["FAILED"]:
+                    raise Exception("Job failed or encountered an error.")
+                else:
+                    await asyncio.sleep(1)
+
+        transcription_to_clean = run_request
+        transcription = [segment["text"].strip() for segment in transcription_to_clean["segments"]]
+
+        output_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", os.path.basename(audio_file) + "-trans.txt")
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        with open(output_file, 'w') as f:
+            f.write('\n'.join(transcription))
+
+        return os.path.basename(audio_file) + "-trans.txt"
+    except Exception as e:
+        print(f"Error during transcription: {e}")
+        raise e"""
+    async with aiohttp.ClientSession() as session:
+        response = await client.wait_for_api_request_completion(job_id, session, 5)
+    
+    transcription_to_clean = response["output"]
+    with open(audio_file + ".response", 'w') as f:
+        f.write(json.dumps(response))
+    transcription = [segment["text"].strip() for segment in transcription_to_clean["segments"]]
+
+    output_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", os.path.basename(audio_file) + "-trans.txt")
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, 'w') as f:
         f.write('\n'.join(transcription))
 
     return os.path.basename(audio_file) + "-trans.txt"
 
-hf_pipeline = pipeline('text-generation', model=model, tokenizer=tokenizer, device_map='auto')
+#hf_pipeline = pipeline('text-generation', model=model, tokenizer=tokenizer, device_map='auto')
+
+#transcribe_audio_file("D:\\DucklongTesisSeminario\\ducklong\\api\\data\\Recording Prueba Whisper.mp3")
 
 def send_question_prompt(transcript_class, script_class): 
 
@@ -90,7 +177,8 @@ def send_question_prompt(transcript_class, script_class):
     #presence_penalty=0.0,
     #logprobs=None)
 
-    jsonGenerator = genai.GenerativeModel('gemini-1.5-flash',
+    jsonGenerator = genai.GenerativeModel('gemini-1.5-flash', 
+                                          safety_settings=safety_settings,
                               generation_config={"response_mime_type": "application/json"})
     response = jsonGenerator.generate_content(prompt)
     return jsonify(response.text)
@@ -133,7 +221,7 @@ def set_file():
 
 
 @app.route("/api/file", methods=['POST'])
-def get_file():
+async def get_file():
 
     if 'transcription' not in request.files or 'script' not in request.files:
         return jsonify({"error": "Both files must be provided"}), 400
@@ -142,31 +230,37 @@ def get_file():
     script = request.files['script']
 
     if transcription.filename != '':
-        transcription.save(os.path.join(os.path.dirname(os.path.abspath(__file__)), transcription.filename))
+        transcription.save(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", transcription.filename))
 
     if script.filename != '':
-        script.save(os.path.join(os.path.dirname(os.path.abspath(__file__)), script.filename))
-
-    result = transcribe_audio_file.delay(transcription.filename)    
-    return jsonify({"message": "Transcription process started", "task_id": result.id}), 202
-
+        script.save(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", script.filename))
+    
+    audio_base64_transformed = encode_audio_base64(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", transcription.filename))
+    payload = {
+                
+                    "audio_base64": audio_base64_transformed
+                
+            }
+    async with aiohttp.ClientSession() as session:
+        task_id = await client.send_async_api_request(payload, session, 1000000)
+    await transcribe_audio_file(task_id, os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", transcription.filename))
+    return jsonify({"message": "Transcription process started", "task_id": task_id}), 202
 
 @app.route("/api/quiz/get/<task_id>/<load_if_yes>", methods=['GET'])
-def check_transcription_status(task_id, load_if_yes):
-    # Check the status of the transcription task
-    task = AsyncResult(task_id)
-
-    if task.state == 'PENDING':
-        # Task is still pending
+async def check_transcription_status(task_id, load_if_yes):
+    status = tasks.get(task_id, "unknown")
+    
+    if status == 'PENDING':
         return jsonify({"status": "pending"}), 202
-    elif task.state == 'SUCCESS':
-        # Task is complete, return the result
-        if(load_if_yes):
-            script_transcript.transcription = task.get()
-        return jsonify({"status": "complete", "result": task.get()}), 200
-    else:
-        # Task has failed or been revoked
+    elif status == 'COMPLETED':
+        result = tasks[task_id]
+        if load_if_yes.lower() == 'yes':
+            script_transcript.transcription = result
+        return jsonify({"status": "complete", "result": result}), 200
+    elif status == 'failed':
         return jsonify({"status": "error", "message": "Transcription task failed or revoked"}), 500
+    else:
+        return jsonify({"status": "error", "message": "Unknown task ID"}), 400
 
 @app.route("/api/quiz/get/", methods=['GET'])
 def get_quiz():
@@ -262,7 +356,7 @@ def start_conversation():
     #text_response = json_response['choices'][0]["message"]["content"]
     #conversation_history.append("Bot: "+text_response)
     text_response = chat.send_message("Eres Ducklong, un Personaje artificial. Tu eres un companero de un estudiante que te va a explicar su clase de ahora, en esa clases estan los conceptos importantes. Tu como buen companero debes preguntar lo que necesites para estar listo para el examen, asegurate de tratar de poner atencion a lo que tu companero te diga. Tu principal objetivo deberia ser dejar que tu companero explique, solamente limitate a hacer alguna que otra pregunta acerca de algo que te parezca que no has entendido o duda que tengas por la manera en la que explico. Sigue lo que el te va diciendo, y trata de inducir lo que el va a decir para corroborar si vas entendiendo bien.  Tu tienes SECRETAMENTE la clase del profesor (su guion y su transcripcion), usalo para preguntar algo que pienses que debas saber y que tu companero no te ha explicado. Debes responder a esta conversacion de la siguiente manera: 'Hola, soy Ducklong, tu companero. Explicame por favor la clase de hoy.'. Guion:`" + script + " Transcripción: `" + transcription + "n`")
-    return jsonify({"message": text_response})
+    return jsonify({"message": text_response.text})
 
 # Endpoint to end the current conversation
 @app.route("/api/chatbot/end", methods=["POST"])
@@ -317,4 +411,4 @@ def chatbot():
     #conversation_history.append(f"Bot: {chatbot_response}")
 
     # Return the chatbot response
-    return jsonify({"message": chat.send_message(user_input)})
+    return jsonify({"message": chat.send_message(user_input).text})
