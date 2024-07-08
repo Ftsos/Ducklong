@@ -5,7 +5,7 @@ import io
 import sys
 import requests
 from api.runpod_whisperx_serverless_clientside.asyncio_runpod_client_helper import RunpodApiClient
-import runpod
+#import runpod
 import base64
 import asyncio
 import aiohttp
@@ -17,7 +17,7 @@ from openai import OpenAI
 from flask_cors import CORS
 from dotenv import load_dotenv
 from logging.config import dictConfig
-from runpod import AsyncioEndpoint, AsyncioJob
+#from runpod import AsyncioEndpoint, AsyncioJob
 
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -58,7 +58,7 @@ safety_settings = [
 client = OpenAI(api_key=OPENAI_API_KEY)
 AWANLLM_API_KEY = AWANLLM_API_KEY_ENV
 genai.configure(api_key=GOOGLE_API_KEY)
-runpod.api_key = RUNPOD_API_KEY
+#runpod.api_key = RUNPOD_API_KEY
 
 conversation_history = []
 geminiChatModel = genai.GenerativeModel('gemini-pro', safety_settings=safety_settings)
