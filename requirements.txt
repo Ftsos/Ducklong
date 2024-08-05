@@ -1,7 +1,9 @@
-numpy==1.24.3
-Flask==2.2.2
-requests==2.28.2
-openai==0.27.0
-pydantic==1.10.2
-torch==1.11.0
-flask-cors==3.0.10
+Flask
+requests
+google-generativeai
+pydantic
+openai
+Flask-CORS
+python-dotenv
+aiohttp
+gunicorn

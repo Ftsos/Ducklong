@@ -91,7 +91,7 @@ whisper_model_size = "large-v3"
 app.config['CELERY_BROKER_URL'] = CELERY_BROKER_URL 
 app.config['CELERY_RESULT_BACKEND'] = CELERY_BROKER_URL
 #celery = Celery(app.name, backend=app.config['CELERY_RESULT_BACKEND'], broker=app.config['CELERY_BROKER_URL'])
-asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+#asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 client = RunpodApiClient(RUNPOD_API_KEY, "pwz6ynrk488cme")
 
 class QuestionFormat(BaseModel):
