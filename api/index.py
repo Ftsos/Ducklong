@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 import json
 import os
 import io
@@ -291,7 +291,7 @@ def get_quiz():
 
 @app.route("/api/quiz/answer", methods=['POST'])
 def get_responses():
-    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), str(date.today()) + "-Quiz.json")
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quizzes", str(date.today()) + "-Quiz.json")
 
     # Load existing JSON content if the file exists
     try:
@@ -313,6 +313,14 @@ def get_responses():
 
     print("Quiz Data Saved. ", filename)
     return "Data Saved."
+
+def get_last_quiz_file():
+    quiz_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quizzes")
+    files = [f for f in os.listdir(quiz_dir) if os.path.isfile(os.path.join(quiz_dir, f))]
+    if not files:
+        return None
+    files.sort(key=lambda x: os.path.getmtime(os.path.join(quiz_dir, x)), reverse=True)
+    return os.path.join(quiz_dir, files[0])  # Return the full path of the last file
 
 
 # Endpoint to start a new conversation
@@ -337,6 +345,12 @@ def start_conversation():
             script = f.read()
     except FileNotFoundError:
         return jsonify({"error": "Script file not found"}), 404
+    
+    try:
+        with open(get_last_quiz_file(), 'r', encoding='utf-8', errors='replace') as f:
+            quiz = f.read()
+    except FileNotFoundError:
+        return jsonify({"error": "Script file not found"}), 404
 
     #url = "https://api.awanllm.com/v1/chat/completions"
     chat = geminiChatModel.start_chat(history=[])
@@ -355,7 +369,7 @@ def start_conversation():
     #json_response = response.json()
     #text_response = json_response['choices'][0]["message"]["content"]
     #conversation_history.append("Bot: "+text_response)
-    text_response = chat.send_message("Eres Ducklong, un Personaje artificial. Tu eres un companero de un estudiante que te va a explicar su clase de ahora, en esa clases estan los conceptos importantes. Tu como buen companero debes preguntar lo que necesites para estar listo para el examen, asegurate de tratar de poner atencion a lo que tu companero te diga. Tu principal objetivo deberia ser dejar que tu companero explique, solamente limitate a hacer alguna que otra pregunta acerca de algo que te parezca que no has entendido o duda que tengas por la manera en la que explico. Sigue lo que el te va diciendo, y trata de inducir lo que el va a decir para corroborar si vas entendiendo bien.  Tu tienes SECRETAMENTE la clase del profesor (su guion y su transcripcion), usalo para preguntar algo que pienses que debas saber y que tu companero no te ha explicado. Debes responder a esta conversacion de la siguiente manera: 'Hola, soy Ducklong, tu companero. Explicame por favor la clase de hoy.'. Guion:`" + script + " Transcripción: `" + transcription + "n`")
+    text_response = chat.send_message("Eres Ducklong, un personaje artificial. Eres un compañero de estudio que ayudará al estudiante a reflexionar sobre sus respuestas incorrectas. Primero, pídele que te explique cómo abordó un problema (elige de los que tienes en su quiz) y qué hizo, este problema podria ser un problema que solvento correctamente; posteriormente utiliza los problemas que resolvio incorrectamente y haz preguntas acerca de como solvento sus problemas. Después, si todas las respuestas están correctas o ya revisaste todas las incorrectas, ofrécele un problema más aplicado que pruebe la misma habilidad, cuando de una respuesta guialo a la solucion. Si el estudiante no tiene más preguntas, indícale que puede hacer clic en el botón para cerrar la conversación. Inicia la conversación diciendo: 'Hola, soy Ducklong, tu compañero. ¿Cómo abordaste <el problema que elegiste tu que viene del quiz (de los que se te proporcionan en formato json)> y qué pasos seguiste?'. Luego, usa el guion, la transcripción y el quiz para hacer preguntas adicionales si el estudiante no cubre los puntos clave.  Guion: " + script + " Transcripcion: " + transcription + " Quiz: " + quiz)
     return jsonify({"message": text_response.text})
 
 # Endpoint to end the current conversation
@@ -364,6 +378,26 @@ def end_conversation():
     #global conversation_history
     #conversation_history = []   Clear conversation history
     global chat
+    conversation_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conversations")
+    if not os.path.exists(conversation_dir):
+        os.makedirs(conversation_dir)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_name = f"conversation_{timestamp}.json"
+    file_path = os.path.join(conversation_dir, file_name)
+    
+    def transform_message(message):
+        return {
+            "role": message.role,  # Assuming role is stored as a string
+            "parts": [part.text for part in message.parts]  # Assuming parts is a list of dictionaries
+        }
+    if isinstance(chat.history, list):
+        serializable_history = [transform_message(msg) for msg in chat.history]
+
+        # Save the conversation to a JSON file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(serializable_history, f, ensure_ascii=False, indent=4)
+
     chat = {}
     return jsonify({"message": "Conversation ended."})
 

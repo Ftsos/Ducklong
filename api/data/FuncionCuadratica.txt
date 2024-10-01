@@ -1,0 +1,49 @@
+Tema: Función y = ax^2
+
+Si "a" es un número diferente de 1, entonces para elaborar la gráfica de y = ax^2 se multiplica por "a" todos los valores de y = x^2.
+
+El eje de simetría de una parábola es la recta vertical que divide a la parábola en dos partes congruentes, para y = ax^2 el eje de simetría es el eje y
+
+Tema: Características de las funciones y = ax2
+
+El valor de "a" en y = ax2 determina hacia dónde abre la parábola, si a > 0 abre hacia arriba y sí a < 0 abre hacia abajo. Además, a partir de su gráfico, se pueden obtener los diferentes elementos
+
+
+Tema: Máximos y mínimos de una función y = ax^2
+
+En toda función cuadrática, Si a < 0, el vértice de la parábola es un valor máximo y si a > 0, el vértice de la parábola es un valor mínimo
+
+
+
+Tema: Dominio y rango de una función y = ax2
+
+A los valores que toma la variable "x" se les llama dominio, y a los valores que toma "y" se les llama rango
+
+La siguiente tabla de valores corresponde a la función y = 3x^2. Responder:
+
+1.¿Qué valores puede tomar x?
+2.¿Qué valores se obtienen en f (x)?
+3.¿Cuál es el vértice de la función?
+Solución
+1.Puede tomar cualquier número real positivo o negativo.
+2.Se obtienen solo valores reales positivos y el 0.
+3. El vértice es el par ordenado (0, 0)
+
+
+
+Tema: Función y = ax2 + c
+
+Si "a" es cualquier número real positivo o negativo (excepto 0), existen dos casos
+
+1) Si "c" es un número positivo (c > 0) entonces, la gráfica de y = ax2 + c, es un desplazamiento vertical de c unidades (hacia arriba) de la gráfica de y = ax2
+
+2) Si "c" es un número negativo (c < 0) entonces, la gráfica de y = ax2 + c, es un desplazamiento vertical de c unidades (hacia abajo) de la gráfica de y = ax2
+
+En ambos casos, El eje de simetría de y = ax2 + c es el eje y, y su vértice es (0, c)
+
+
+Tema: Encontrar la ecuación cuadrática a partir de la gráfica
+Dada la gráfica de una función y = a *x^2 + c y un punto (m, n) sobre ésta, entonces para encontrar los valores de a y c (que pueden ser positivos o negativos) se hace lo siguiente: 
+
+1. En la gráfica, ubicar el vértice de la parábola (0, c): si está arriba de (0, 0) entonces e es positivo, y si está debajo de (0, 0) entonces c es negativo. 
+2. Encontrar el valor de a sustituyendo n, m y c, quedando así: n = a*m^2 + c.

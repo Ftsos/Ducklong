@@ -1,12 +1,14 @@
-
 # Warning & To Do's
+
 Proyecto en desarrollo;
 
-- [X] Comenzar a trabajar la interfaz de cliente para el chatbot 
+- [X] Comenzar a trabajar la interfaz de cliente para el chatbot
 - [X] Migracion a Gemini (Whisper y cambiar los modelos locales y de Llama por Gemini)
 - [X] Testear y arreglar cliente para la actividad de quiz y de chatbot (En Quiz basicamente no funciona)
-- [ ] Guardar la metadata (Cliente)
+- [X] Guardar la metadata (Cliente)
+
 ---
+
 <p align="center">
   <a href="https://nextjs-flask-starter.vercel.app/">
     <img src="https://assets.vercel.com/image/upload/v1588805858/repositories/vercel/logo.png" height="96">

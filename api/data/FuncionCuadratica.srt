@@ -1,0 +1,86 @@
+# Guion actualizado: Profesor explicando temas de funciones cuadráticas
+
+## Tema 1: Función y = ax^2
+
+Profesor: Muy bien, clase. Hoy vamos a hablar sobre la función cuadrática y = ax^2. Presten mucha atención porque este es un concepto fundamental.
+
+Primero, es importante entender qué sucede cuando "a" es un número diferente de 1. En este caso, para elaborar la gráfica de y = ax^2, multiplicamos por "a" todos los valores de y = x^2. Esto significa que la parábola se estira o se comprime verticalmente dependiendo del valor de "a".
+
+Ahora, hablemos del eje de simetría. En una parábola, el eje de simetría es la recta vertical que divide a la parábola en dos partes congruentes. Para la función y = ax^2, el eje de simetría siempre es el eje y. Esto significa que la parábola es perfectamente simétrica alrededor del eje vertical.
+
+¿Alguna pregunta hasta ahora?
+
+## Tema 2: Características de las funciones y = ax^2
+
+Profesor: Excelente. Ahora, profundicemos en las características específicas de las funciones y = ax^2.
+
+El valor de "a" en y = ax^2 es crucial porque determina hacia dónde abre la parábola. Si a > 0, es decir, si "a" es un número positivo, la parábola abre hacia arriba. Por otro lado, si a < 0, es decir, si "a" es un número negativo, la parábola abre hacia abajo.
+
+Además, a partir del gráfico de una función cuadrática, podemos obtener varios elementos importantes:
+
+1. El vértice: Es el punto más alto o más bajo de la parábola.
+2. El eje de simetría: Como mencionamos antes, es la línea vertical que pasa por el vértice.
+3. Los puntos de intersección con los ejes: Donde la parábola cruza el eje x y el eje y.
+4. La concavidad: Determinada por el signo de "a".
+
+Estos elementos nos ayudan a entender completamente el comportamiento de la función cuadrática.
+
+¿Todos entienden cómo el valor de "a" afecta la forma de la parábola?
+
+## Tema 3: Máximos y mínimos de una función y = ax^2
+
+Profesor: Perfecto. Ahora, hablemos sobre los máximos y mínimos de una función cuadrática.
+
+En toda función cuadrática, el comportamiento de la parábola depende del signo de "a". Si a < 0, es decir, si "a" es un número negativo, el vértice de la parábola representa un valor máximo. En este caso, la parábola abre hacia abajo.
+
+Por otro lado, si a > 0, es decir, si "a" es un número positivo, el vértice de la parábola representa un valor mínimo. En este caso, la parábola abre hacia arriba.
+
+Este concepto es crucial para entender el comportamiento de las funciones cuadráticas y será muy útil cuando resolvamos problemas de optimización.
+
+¿Está claro para todos? ¿Alguien tiene alguna duda?
+
+## Tema 4: Dominio y rango de una función y = ax^2
+
+Profesor: Muy bien. Ahora vamos a hablar sobre el dominio y el rango de una función cuadrática.
+
+En matemáticas, usamos términos específicos para referirnos a los valores que pueden tomar las variables en una función. A los valores que puede tomar la variable "x" los llamamos dominio. Por otro lado, a los valores que toma "y" como resultado de la función los llamamos rango.
+
+Vamos a ver un ejemplo concreto. Consideremos la función y = 3x^2. Tenemos una tabla de valores para esta función. Analicémosla:
+
+1. ¿Qué valores puede tomar x? En este caso, x puede tomar cualquier número real, ya sea positivo o negativo. Es decir, el dominio es todos los números reales.
+
+2. ¿Qué valores se obtienen en f(x)? Si observamos cuidadosamente, veremos que sólo obtenemos valores reales positivos y el 0. Nunca obtendremos un valor negativo. Este es el rango de nuestra función.
+
+3. ¿Cuál es el vértice de la función? El vértice es el punto más bajo de la parábola, que en este caso es el par ordenado (0, 0).
+
+¿Alguna pregunta sobre el dominio y el rango?
+
+## Tema 5: Función y = ax^2 + c
+
+Profesor: Excelente. Ahora vamos a complicar un poco las cosas y hablar sobre la función y = ax^2 + c.
+
+En esta función, "a" puede ser cualquier número real positivo o negativo, excepto 0. El valor de "c" es lo que nos interesa ahora. Hay dos casos que debemos considerar:
+
+1) Si "c" es un número positivo (c > 0), entonces la gráfica de y = ax^2 + c es un desplazamiento vertical de c unidades hacia arriba de la gráfica de y = ax^2.
+
+2) Si "c" es un número negativo (c < 0), entonces la gráfica de y = ax^2 + c es un desplazamiento vertical de c unidades hacia abajo de la gráfica de y = ax^2.
+
+En ambos casos, es importante notar que el eje de simetría de y = ax^2 + c sigue siendo el eje y. Sin embargo, el vértice ya no está en el origen. Ahora, el vértice se encuentra en el punto (0, c).
+
+¿Todos entienden cómo "c" afecta la posición de la parábola?
+
+## Tema 6: Encontrar la ecuación cuadrática a partir de la gráfica
+
+Profesor: Para terminar, vamos a aprender cómo encontrar la ecuación cuadrática a partir de su gráfica. Este proceso es muy útil cuando tenemos una representación visual de la función y necesitamos su expresión algebraica.
+
+Supongamos que tenemos la gráfica de una función y = a*x^2 + c y un punto (m, n) sobre esta gráfica. Para encontrar los valores de "a" y "c" (que pueden ser positivos o negativos), seguimos estos pasos:
+
+1. En la gráfica, ubicamos el vértice de la parábola (0, c). Si está por encima del punto (0, 0), entonces c es positivo. Si está por debajo, c es negativo.
+
+2. Para encontrar el valor de "a", sustituimos los valores que conocemos en la ecuación. Quedará así: n = a*m^2 + c.
+
+Con estos dos pasos, podremos determinar la ecuación completa de la función cuadrática.
+
+¿Alguna pregunta final sobre este tema o cualquiera de los anteriores?
+
+Muy bien, clase. Hemos cubierto mucho terreno hoy. Recuerden practicar estos conceptos en casa y no duden en preguntar si tienen dudas en la próxima clase.
